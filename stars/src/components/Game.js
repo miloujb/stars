@@ -36,7 +36,9 @@ const StarsDisplay = (props) => {
   );
 };
 
-const Game = (props) => {
+// Custom Hook
+
+const useGameState = () => {
   const [stars, setStars] = useState(utils.random(1, 9));
   const [availableNums, setAvailableNums] = useState(utils.range(1, 9));
   const [candidateNums, setCandidateNums] = useState([]);
@@ -50,7 +52,29 @@ const Game = (props) => {
       return () => clearTimeout(timerId);
     }
   });
+  const setGameState = (newCandidateNums) => {
+    if (utils.sum(newCandidateNums) !== stars) {
+      setCandidateNums(newCandidateNums);
+    } else {
+      const newAvailableNums = availableNums.filter(
+        (n) => !newCandidateNums.includes(n)
+      );
+      setStars(utils.randomSumIn(newAvailableNums, 9));
+      setAvailableNums(newAvailableNums);
+      setCandidateNums([]);
+    }
+  };
+  return { stars, availableNums, candidateNums, secondsLeft, setGameState };
+};
 
+const Game = (props) => {
+  const {
+    stars,
+    availableNums,
+    candidateNums,
+    secondsLeft,
+    setGameState,
+  } = useGameState();
   const candidatesAreWrong = utils.sum(candidateNums) > stars;
 
   const gameStatus =
@@ -70,20 +94,12 @@ const Game = (props) => {
     if (currentStatus === "used" || gameStatus !== "active") {
       return;
     }
+
     const newCandidateNums =
       currentStatus === "available"
         ? candidateNums.concat(number)
         : candidateNums.filter((cn) => cn !== number);
-    if (utils.sum(newCandidateNums) !== stars) {
-      setCandidateNums(newCandidateNums);
-    } else {
-      const newAvailableNums = availableNums.filter(
-        (n) => !newCandidateNums.includes(n)
-      );
-      setStars(utils.randomSumIn(newAvailableNums, 9));
-      setAvailableNums(newAvailableNums);
-      setCandidateNums([]);
-    }
+    setGameState(newCandidateNums);
   };
 
   return (
@@ -136,13 +152,17 @@ const colours = {
 };
 
 const utils = {
-  //sum an array
+  // Sum an array
   sum: (arr) => arr.reduce((acc, curr) => acc + curr, 0),
-  //create an array of numbers
+
+  // create an array of numbers between min and max (edges included)
   range: (min, max) => Array.from({ length: max - min + 1 }, (_, i) => min + i),
-  // pick a random number between min and max
-  random: (min, max) => min + Math.floor(Math.random() * (max = min + 1)),
-  //given an array of numbers and a max, pick a random sum (<max) from the set of all available sums in the array
+
+  // pick a random number between min and max (edges included)
+  random: (min, max) => min + Math.floor(Math.random() * (max - min + 1)),
+
+  // Given an array of numbers and a max...
+  // Pick a random sum (< max) from the set of all available sums in arr
   randomSumIn: (arr, max) => {
     const sets = [[]];
     const sums = [];
@@ -152,7 +172,7 @@ const utils = {
         const candidateSum = utils.sum(candidateSet);
         if (candidateSum <= max) {
           sets.push(candidateSet);
-          sets.push(candidateSum);
+          sums.push(candidateSum);
         }
       }
     }
